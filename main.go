@@ -136,14 +136,35 @@ func main() {
 	}
 	for {
 		var s miramodels.Submission
+		var pSC, cSC bool
 		select {
 		case s = <-pS.C:
+			if s == nil {
+				pSC = true
+			}
 		case s = <-cS.C:
+			if s == nil {
+				cSC = true
+			}
 		}
 		if s == nil {
-			// :TODO: this means one of the channels closed. Handle it?
 			log.Warn("looks like one channel is closed?")
-			time.Sleep(1 * time.Second)
+			if pSC {
+				log.Info("post channel was closed, recreating")
+				pS, err = reddit.Subreddit(config.Subreddit).StreamPosts()
+				if err != nil {
+					log.WithError(err).Warn("Could not create post stream")
+				}
+				time.Sleep(1 * time.Minute)
+			}
+			if cSC {
+				log.Info("comment channel was closed, recreating")
+				cS, err = reddit.Subreddit(config.Subreddit).StreamComments()
+				if err != nil {
+					log.WithError(err).Warn("Could not create comment stream")
+				}
+				time.Sleep(1 * time.Minute)
+			}
 			continue
 		}
 		links := extractYT(s.GetBody())
