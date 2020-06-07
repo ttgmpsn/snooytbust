@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 	"github.com/ttgmpsn/mira"
@@ -151,26 +151,39 @@ func main() {
 			log.Warn("looks like one channel is closed?")
 			if pSC {
 				log.Info("post channel was closed, recreating")
-				pS, err = reddit.Subreddit(config.Subreddit).StreamPosts()
-				if err != nil {
-					log.WithError(err).Warn("Could not create post stream")
+				chanCreated := false
+				for !chanCreated {
+					pS, err = reddit.Subreddit(config.Subreddit).StreamPosts()
+					if err != nil {
+						log.WithError(err).Warn("Could not create post stream, trying again in a minute (reddit down?)...")
+						time.Sleep(1 * time.Minute)
+						continue
+					}
+					chanCreated = true
 				}
-				time.Sleep(1 * time.Minute)
 			}
 			if cSC {
 				log.Info("comment channel was closed, recreating")
-				cS, err = reddit.Subreddit(config.Subreddit).StreamComments()
-				if err != nil {
-					log.WithError(err).Warn("Could not create comment stream")
+				chanCreated := false
+				for !chanCreated {
+					cS, err = reddit.Subreddit(config.Subreddit).StreamComments()
+					if err != nil {
+						log.WithError(err).Warn("Could not create comment stream, trying again in a minute (reddit down?)...")
+						time.Sleep(1 * time.Minute)
+						continue
+					}
+					chanCreated = true
 				}
-				time.Sleep(1 * time.Minute)
 			}
 			continue
 		}
 		links := extractYT(s.GetBody())
+		if len(links) == 0 {
+			log.WithField("thing_id", s.GetID()).Debug("no video")
+		}
 		for _, link := range links {
 			l := log.WithField("video_id", link).WithField("thing_id", s.GetID())
-			l.Debug("found YT video")
+			l.Debug("found YT link")
 			call := ytService.Videos.List("id,snippet").Id(link).Fields("items(id,snippet(channelId,channelTitle))")
 			resp, err := call.Do()
 			if err != nil {
@@ -184,13 +197,13 @@ func main() {
 			}
 
 			for _, i := range resp.Items {
-				l.Debugf("Channel: %s (ID %s)", i.Snippet.ChannelTitle, i.Snippet.ChannelId)
+				l.Infof("YT video found - Channel: %s (ID %s)", i.Snippet.ChannelTitle, i.Snippet.ChannelId)
 
 				var res struct {
 					ID uint64
 				}
 
-				r, err := db.QueryOne(&res, "SELECT id FROM dtg_blacklist WHERE media_channel_id = ? AND media_platform_id = 1", i.Snippet.ChannelId)
+				r, err := db.QueryOne(&res, "SELECT id FROM dtg_blacklist WHERE media_channel_id = ? AND media_platform_id = 1 LIMIT 1", i.Snippet.ChannelId)
 				if err != nil && err != pg.ErrNoRows {
 					l.WithError(err).Error("DB query failed")
 					continue
