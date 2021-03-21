@@ -17,7 +17,7 @@ clientid = ""
 clientsecret = ""
 Username = ""
 Password = ""
-UserAgent = "SnooYTBust v0.1 by /u/Try_to_guess_my_psn"
+UserAgent = "SnooYTBust v0.3 by /u/Try_to_guess_my_psn"
 RedirectURL = ""
 
 [services]
