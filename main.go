@@ -134,6 +134,7 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Could not create comment stream")
 	}
+
 	for {
 		var s miramodels.Submission
 		var pSC, cSC bool
@@ -177,17 +178,26 @@ func main() {
 			}
 			continue
 		}
+		l := log.WithField("thing_id", s.GetID())
+
+		if s.GetAuthor() == rMe.Name {
+			// Exempts own posts
+			continue
+		}
+
+		// YTBUST START //
+		l = l.WithField("prefix", "ytbust")
 		links := extractYT(s.GetBody())
 		if len(links) == 0 {
-			log.WithField("thing_id", s.GetID()).Debug("no video")
+			l.Debug("no video")
 		}
 		for _, link := range links {
-			l := log.WithField("video_id", link).WithField("thing_id", s.GetID())
+			l = l.WithField("video_id", link)
 			l.Debug("found YT link")
-			call := ytService.Videos.List("id,snippet").Id(link).Fields("items(id,snippet(channelId,channelTitle))")
+			call := ytService.Videos.List([]string{"id,snippet"}).Id(link).Fields("items(id,snippet(channelId,channelTitle))")
 			resp, err := call.Do()
 			if err != nil {
-				log.WithError(err).Error("YT API Error")
+				l.WithError(err).Error("YT API Error")
 				continue
 			}
 
@@ -202,13 +212,11 @@ func main() {
 				var res struct {
 					ID uint64
 				}
-
 				r, err := db.QueryOne(&res, "SELECT id FROM dtg_blacklist WHERE media_channel_id = ? AND media_platform_id = 1 LIMIT 1", i.Snippet.ChannelId)
 				if err != nil && err != pg.ErrNoRows {
 					l.WithError(err).Error("DB query failed")
 					continue
 				}
-
 				if err == pg.ErrNoRows || r.RowsReturned() == 0 {
 					continue
 				}
