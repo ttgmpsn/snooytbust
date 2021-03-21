@@ -1,16 +1,12 @@
 # SnooYTBust config
 Subreddit = ""
 
-# This is optional and can be kept empty.
-[slack]
-botUserToken = ""
-notificationChannel = ""
-
 [database]
 username = ""
 password = ""
 database = ""
 host = ""
+table = ""
 
 [reddit]
 clientid = ""
@@ -18,7 +14,11 @@ clientsecret = ""
 Username = ""
 Password = ""
 UserAgent = "SnooYTBust v0.3 by /u/Try_to_guess_my_psn"
-RedirectURL = ""
 
 [services]
 YTAPIKey = ""
+
+# This is optional and can be kept empty.
+[slack]
+botUserToken = ""
+notificationChannel = ""

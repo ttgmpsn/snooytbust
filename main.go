@@ -32,6 +32,7 @@ type botConfig struct {
 		Password string
 		Host     string
 		Database string
+		Table    string
 	}
 
 	Reddit mira.Credentials
@@ -212,7 +213,7 @@ func main() {
 				var res struct {
 					ID uint64
 				}
-				r, err := db.QueryOne(&res, "SELECT id FROM dtg_blacklist WHERE media_channel_id = ? AND media_platform_id = 1 LIMIT 1", i.Snippet.ChannelId)
+				r, err := db.QueryOne(&res, fmt.Sprintf("SELECT id FROM %s WHERE media_channel_id = ? AND media_platform_id = 1 LIMIT 1", config.Database.Table), i.Snippet.ChannelId)
 				if err != nil && err != pg.ErrNoRows {
 					l.WithError(err).Error("DB query failed")
 					continue
